@@ -1,16 +1,52 @@
+import bcrypt from 'bcrypt';
+import jwt from 'jsonwebtoken';
 import { userRepository } from '../models/user.model.js';
-import { createUserValidator } from '../validators/user.validator.js';
+import { createUserValidator, loginUserValidator } from '../validators/user.validator.js';
 import { passwordHash } from '../utils/passwordHash.js';
 
 const createUser = async (req, res) => {
-  console.log(req.body);
   const { error } = createUserValidator(req.body);
   if (error) {
     res.status(404).send({ message: 'User not valid!' });
   } else {
-    const newPassword = await passwordHash(req.body.password);
-    const user = await userRepository.createAndSave({...req.body, password: newPassword, friendslist: [],  isOnline: false});
-    res.send(user);
+    let user = await userRepository.search().where('email').equals(req.body.email).return.first();
+    if (!user) {
+      const newPassword = await passwordHash(req.body.password);
+      user = await userRepository.createAndSave({
+        ...req.body,
+        password: newPassword,
+        friendslist: [],
+        isOnline: false,
+      });
+      res.send(user);
+    } else {
+      res.send({ message: 'An account for this email already exists!' });
+    }
+  }
+};
+
+const login = async (req, res) => {
+  const { error } = loginUserValidator(req.body.email, req.body.password);
+  if (error) {
+    res.status(404).send({ error: true, message: 'Email or password invalid!' });
+  } else {
+    const user = await userRepository.search().where('email').equals(req.body.email).return.first();
+    if (user) {
+      bcrypt.compare(req.body.password, user.password, (err, result) => {
+        if (error) {
+          res.status(404).send({ error: true, message: 'Error encountered!' });
+        } else {
+          if (result) {
+            const token = jwt.sign({ user }, process.env.JWT_SECRET, { expiresIn: '1h' });
+            res.send({ error: false, token: token, message: 'Login successful!' });
+          } else {
+            res.status(404).send({ error: true, message: 'Password incorrect!' });
+          }
+        }
+      });
+    } else {
+      res.status(404).send({ error: true, message: 'Email incorrect!' });
+    }
   }
 };
 
@@ -45,4 +81,4 @@ const getAllUsers = async (req, res) => {
   res.send(users);
 };
 
-export default { createUser, getUser, updateUser, deleteUser, getAllUsers };
+export default { createUser, login, getUser, updateUser, deleteUser, getAllUsers };
