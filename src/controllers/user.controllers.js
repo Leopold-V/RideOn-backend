@@ -7,20 +7,24 @@ import { passwordHash } from '../utils/passwordHash.js';
 const createUser = async (req, res) => {
   const { error } = createUserValidator(req.body);
   if (error) {
-    res.status(404).send({ message: 'User not valid!' });
+    res.status(400).send({ error: true, message: 'User not valid!' });
   } else {
-    let user = await userRepository.search().where('email').equals(req.body.email).return.first();
-    if (!user) {
-      const newPassword = await passwordHash(req.body.password);
-      user = await userRepository.createAndSave({
-        ...req.body,
-        password: newPassword,
-        friendslist: [],
-        isOnline: false,
-      });
-      res.send(user);
-    } else {
-      res.send({ message: 'An account for this email already exists!' });
+    try {
+      let user = await userRepository.search().where('email').equals(req.body.email).return.first();
+      if (!user) {
+        const newPassword = await passwordHash(req.body.password);
+        user = await userRepository.createAndSave({
+          ...req.body,
+          password: newPassword,
+          friendslist: [],
+          isOnline: false,
+        });
+        res.status(201).send({ error: false, data: user, message: 'User created!' });
+      } else {
+        res.status(404).send({ error: true, message: 'An account for this email already exists!' });
+      }
+    } catch (e) {
+      res.status(500).send({ error: true, message: e.message });
     }
   }
 };
@@ -28,57 +32,85 @@ const createUser = async (req, res) => {
 const login = async (req, res) => {
   const { error } = loginUserValidator(req.body.email, req.body.password);
   if (error) {
-    res.status(404).send({ error: true, message: 'Email or password invalid!' });
+    res.status(400).send({ error: true, message: 'Email or password invalid!' });
   } else {
-    const user = await userRepository.search().where('email').equals(req.body.email).return.first();
-    if (user) {
-      bcrypt.compare(req.body.password, user.password, (err, result) => {
-        if (error) {
-          res.status(404).send({ error: true, message: 'Error encountered!' });
-        } else {
-          if (result) {
-            const token = jwt.sign({ user }, process.env.JWT_SECRET, { expiresIn: '1h' });
-            res.send({ error: false, token: token, message: 'Login successful!' });
+    try {
+      const user = await userRepository.search().where('email').equals(req.body.email).return.first();
+      if (user) {
+        bcrypt.compare(req.body.password, user.password, (err, result) => {
+          if (error) {
+            res.status(500).send({ error: true, message: 'Error encountered!' });
           } else {
-            res.status(404).send({ error: true, message: 'Password incorrect!' });
+            if (result) {
+              const token = jwt.sign({ user }, process.env.JWT_SECRET, { expiresIn: '1h' });
+              res.send({ error: false, token: token, message: 'Login successful!' });
+            } else {
+              res.status(400).send({ error: true, message: 'Password incorrect!' });
+            }
           }
-        }
-      });
-    } else {
-      res.status(404).send({ error: true, message: 'Email incorrect!' });
+        });
+      } else {
+        res.status(400).send({ error: true, message: 'Email incorrect!' });
+      }
+    } catch (e) {
+      res.status(500).send({ error: true, message: e.message });
     }
   }
 };
 
 const getUser = async (req, res) => {
-  const user = await userRepository.fetch(req.params.id);
-  if (user.firtsname) {
-    res.send(user);
-  } else {
-    res.status(404).send({ message: 'User not found!' });
+  try {
+    const user = await userRepository.fetch(req.params.id);
+    if (user.firstname) {
+      res.send({ error: false, user: user, message: 'User found!' });
+    } else {
+      res.status(404).send({ error: true, message: 'User not found!' });
+    }
+  } catch (e) {
+    res.status(500).send({ error: true, message: e.message });
   }
 };
 
 const updateUser = async (req, res) => {
-  const user = await userRepository.fetch(req.params.id);
-  const newUser = req.body;
-  user.firstname = newUser.firstname ?? null;
-  user.lastname = newUser.lastname ?? null;
-  user.email = newUser.email ?? null;
-  user.isOnline = newUser.isOnline ?? null;
-  user.friendslist = newUser.friendslist ?? null;
-  await userRepository.save(user);
-  res.send(user);
+  try {
+    const user = await userRepository.fetch(req.params.id);
+    if (user.firstname) {
+      const newUser = req.body;
+      user.firstname = newUser.firstname ?? null;
+      user.lastname = newUser.lastname ?? null;
+      user.email = newUser.email ?? null;
+      user.isOnline = newUser.isOnline ?? null;
+      user.friendslist = newUser.friendslist ?? null;
+      await userRepository.save(user);
+      res.send({error: false, user: user, message: 'User updated!'});
+    } else {
+      res.status(404).send({ error: true, message: 'User not found!' });
+    }
+  } catch (e) {
+    res.status(500).send({ error: true, message: e.message });
+  }
 };
 
 const deleteUser = async (req, res) => {
-  await userRepository.remove(req.params.id);
-  res.send({ entityId: req.params.id });
+  try {
+    await userRepository.remove(req.params.id);
+    res.send({ error: false, message: 'User deleted!' });
+  } catch (e) {
+    res.status(500).send({ error: true, message: e.message });
+  }
 };
 
 const getAllUsers = async (req, res) => {
-  const users = await userRepository.search().return.all();
-  res.send(users);
+  try {
+    const users = await userRepository.search().return.all();
+    res.send({error: false, users: users, message: 'Users found!'});
+  } catch (e) {
+    res.status(500).send({ error: true, message: e.message });
+  }
 };
 
-export default { createUser, login, getUser, updateUser, deleteUser, getAllUsers };
+const isUserAuth = (req, res) => {
+  return res.send({ error: false, isAuth: true, message: 'User is authenticated!' });
+};
+
+export default { createUser, login, getUser, updateUser, deleteUser, getAllUsers, isUserAuth };
