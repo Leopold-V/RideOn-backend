@@ -19,7 +19,7 @@ const createUser = async (req, res) => {
           friendslist: [],
           isOnline: false,
         });
-        res.status(201).send({ error: false, data: user, message: 'User created!' });
+        res.status(201).send({ error: false, user: user, message: 'User created!' });
       } else {
         res.status(404).send({ error: true, message: 'An account for this email already exists!' });
       }
@@ -35,7 +35,11 @@ const login = async (req, res) => {
     res.status(400).send({ error: true, message: 'Email or password invalid!' });
   } else {
     try {
-      const user = await userRepository.search().where('email').equals(req.body.email).return.first();
+      const user = await userRepository
+        .search()
+        .where('email')
+        .equals(req.body.email)
+        .return.first();
       if (user) {
         bcrypt.compare(req.body.password, user.password, (err, result) => {
           if (error) {
@@ -43,7 +47,7 @@ const login = async (req, res) => {
           } else {
             if (result) {
               const token = jwt.sign({ user }, process.env.JWT_SECRET, { expiresIn: '1h' });
-              res.send({ error: false, token: token, message: 'Login successful!' });
+              res.send({ error: false, token: token, message: 'Login successful!', user: user });
             } else {
               res.status(400).send({ error: true, message: 'Password incorrect!' });
             }
@@ -82,7 +86,7 @@ const updateUser = async (req, res) => {
       user.isOnline = newUser.isOnline ?? null;
       user.friendslist = newUser.friendslist ?? null;
       await userRepository.save(user);
-      res.send({error: false, user: user, message: 'User updated!'});
+      res.send({ error: false, user: user, message: 'User updated!' });
     } else {
       res.status(404).send({ error: true, message: 'User not found!' });
     }
@@ -103,7 +107,7 @@ const deleteUser = async (req, res) => {
 const getAllUsers = async (req, res) => {
   try {
     const users = await userRepository.search().return.all();
-    res.send({error: false, users: users, message: 'Users found!'});
+    res.send({ error: false, users: users, message: 'Users found!' });
   } catch (e) {
     res.status(500).send({ error: true, message: e.message });
   }
