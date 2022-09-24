@@ -114,7 +114,24 @@ const getAllUsers = async (req, res) => {
 };
 
 const isUserAuth = (req, res) => {
-  return res.send({ error: false, isAuth: true, message: 'User is authenticated!' });
+  const token = req.body.token;
+  if (!token) {
+    return res.status(401).send({ error: true, isAuth: false, message: 'Unanthenticated user' });
+  }
+  jwt.verify(token, process.env.JWT_SECRET, function (err, decoded) {
+    console.log(decoded);
+    if (err) {
+      return res
+        .status(401)
+        .send({ error: true, isAuth: false, message: 'Failed to authenticate with this token.' });
+    }
+    return res.send({
+      error: false,
+      isAuth: true,
+      user: decoded.user,
+      message: 'User is authenticated!',
+    });
+  });
 };
 
 export default { createUser, login, getUser, updateUser, deleteUser, getAllUsers, isUserAuth };

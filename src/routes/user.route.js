@@ -4,7 +4,7 @@ import userController from '../controllers/user.controllers.js';
 
 const router = express.Router();
 
-router.get('/auth', verifyJWT, userController.isUserAuth);
+router.post('/auth', userController.isUserAuth);
 router.get('/all', userController.getAllUsers); // => Temporary removed verifyJWT middleware for testing convenience.
 router.get('/:id', verifyJWT, userController.getUser);
 router.put('/signup', userController.createUser);
