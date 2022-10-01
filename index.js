@@ -8,6 +8,7 @@ import bodyparser from 'body-parser';
 import rateLimit from 'express-rate-limit'
 
 import userRoute from './src/routes/user.route.js';
+import dogRoute from './src/routes/dog.route.js';
 
 const app = express();
 let corsOptions = {
@@ -36,6 +37,7 @@ app.get('/api/v1', (req, res) => {
 })
 
 app.use('/api/v1/users', userRoute);
+app.use('/api/v1/dogs', dogRoute);
 
 app.use(errorHandler);
 app.use(notFound);

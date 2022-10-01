@@ -7,7 +7,7 @@ import { passwordHash } from '../utils/passwordHash.js';
 const createUser = async (req, res) => {
   const { error } = createUserValidator(req.body);
   if (error) {
-    res.status(400).send({ error: true, message: 'User not valid!' });
+    res.status(400).send({ error: true, message: error.message });
   } else {
     try {
       let user = await userRepository.search().where('email').equals(req.body.email).return.first();
@@ -19,7 +19,9 @@ const createUser = async (req, res) => {
           friendslist: [],
           isOnline: false,
         });
-        res.status(201).send({ error: false, user: user, message: 'User created!' });
+        res
+          .status(201)
+          .send({ error: false, user: user, message: 'Account successfully created!' });
       } else {
         res.status(404).send({ error: true, message: 'An account for this email already exists!' });
       }
@@ -32,7 +34,7 @@ const createUser = async (req, res) => {
 const login = async (req, res) => {
   const { error } = loginUserValidator(req.body.email, req.body.password);
   if (error) {
-    res.status(400).send({ error: true, message: 'Email or password invalid!' });
+    res.status(400).send({ error: true, message: error.message });
   } else {
     try {
       const user = await userRepository
@@ -75,6 +77,7 @@ const getUser = async (req, res) => {
   }
 };
 
+// TODO add validator and prevent modify another user that the auth one.
 const updateUser = async (req, res) => {
   try {
     const user = await userRepository.fetch(req.params.id);
